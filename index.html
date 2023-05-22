@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>3D Graphing Calculator</title>
+    <style>
+      body { margin: 0; }
+      canvas { width: 100%; height: 100% }
+      #function-form {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background-color: rgba(255, 255, 255, 0.8);
+        padding: 10px;
+        border-radius: 5px;
+      }
+      #instructions {
+        font-size: 0.8em;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container"></div>
+    <form id="function-form">
+      <label for="function-input">f(x, y) = </label>
+      <input id="function-input" type="text" value="x * x + y * y">
+      <button type="submit">Graph</button>
+      <p id="instructions">Instructions: Enter a function of x and y to graph. Use Math.sin, Math.cos, Math.tan for trigonometric functions, Math.sqrt for square root, and Math.pow for power functions. For example, Math.sin(x) + Math.cos(y), Math.sqrt(x * x + y * y), or Math.pow(x, 2) + Math.pow(y, 2).</p>
+    </form>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="graph.js"></script>
+  </body>
+</html>
