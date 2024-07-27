@@ -1,98 +1,96 @@
-var container;
-var camera, scene, renderer;
-var mesh;
-var mouseX = 0, mouseY = 0;
-var mouseDown = false;
-var mouseButton = 0; // store which mouse button is pressed
-var radius = 300; // distance from the center to the camera
-var theta = 0; // angle for the rotation around the graph
-var phi = 0; // angle for the up and down rotation
+let layout = {
+    title: '3D Graphing Calculator',
+    showlegend: true,
+    autosize: true,
+    scene: {
+        xaxis: {range: [-5, 5]},
+        yaxis: {range: [-5, 5]},
+        zaxis: {range: [-5, 5]}
+    }
+};
 
-init();
-animate();
+let config = {
+    displaylogo: false,
+    responsive: true
+};
 
-function init() {
+Plotly.newPlot('graph', [], layout, config);
 
-    container = document.getElementById( 'container' );
-
-    camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 1000 );
-    camera.position.z = radius;
-
-    scene = new THREE.Scene();
-
-    var func = getFunc(document.getElementById('function-input').value);
-
-    var geometry = new THREE.ParametricGeometry(func, 50, 50);
-
-    var material = new THREE.MeshBasicMaterial( { color: 0x00ff00, wireframe: true } );
-
-    mesh = new THREE.Mesh( geometry, material );
-    scene.add( mesh );
-
-    var axesHelper = new THREE.AxesHelper( 150 );
-    scene.add( axesHelper );
-
-    renderer = new THREE.WebGLRenderer( { antialias: true } );
-    renderer.setPixelRatio( window.devicePixelRatio );
-    renderer.setSize( window.innerWidth, window.innerHeight );
-    container.appendChild( renderer.domElement );
-
-    document.addEventListener( 'mousemove', onDocumentMouseMove, false );
-    document.addEventListener( 'mousedown', onDocumentMouseDown, false );
-    document.addEventListener( 'mouseup', onDocumentMouseUp, false );
-    window.addEventListener( 'resize', onWindowResize, false );
-    var functionForm = document.getElementById('function-form');
-    functionForm.addEventListener('submit', function(event) {
-        event.preventDefault();
-        var func = getFunc(document.getElementById('function-input').value);
-        var newGeometry = new THREE.ParametricGeometry(func, 50, 50);
-        mesh.geometry.dispose();
-        mesh.geometry = newGeometry;
+function addEquation() {
+    const equationList = document.getElementById('equation-list');
+    const newEquation = document.createElement('div');
+    newEquation.className = 'equation-item';
+    newEquation.innerHTML = `
+        <input type="text" class="equation-input" placeholder="Enter an equation (e.g., x^2 + y^2)">
+        <button class="remove-equation">×</button>
+    `;
+    equationList.appendChild(newEquation);
+    
+    newEquation.querySelector('.equation-input').addEventListener('input', updateGraph);
+    newEquation.querySelector('.remove-equation').addEventListener('click', function() {
+        equationList.removeChild(newEquation);
+        updateGraph();
     });
 }
 
-function onWindowResize() {
+function updateGraph() {
+    const equations = document.querySelectorAll('.equation-input');
+    const graphType = document.querySelector('input[name="graph-type"]:checked').value;
+    let data = [];
 
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
+    equations.forEach((eq, index) => {
+        if (eq.value.trim() !== '') {
+            try {
+                const expr = math.compile(eq.value);
+                if (graphType === '2d') {
+                    let x = math.range(-5, 5, 0.1).toArray();
+                    let y = x.map(x => expr.evaluate({x: x}));
+                    
+                    data.push({
+                        x: x,
+                        y: y,
+                        type: 'scatter',
+                        mode: 'lines',
+                        name: `y = ${eq.value}`
+                    });
+                } else {
+                    let xValues = math.range(-5, 5, 0.1).toArray();
+                    let yValues = math.range(-5, 5, 0.1).toArray();
+                    let zValues = [];
 
-    renderer.setSize( window.innerWidth, window.innerHeight );
+                    for (let i = 0; i < yValues.length; i++) {
+                        zValues.push(xValues.map(x => expr.evaluate({x: x, y: yValues[i]})));
+                    }
 
+                    data.push({
+                        x: xValues,
+                        y: yValues,
+                        z: zValues,
+                        type: 'surface',
+                        name: `z = ${eq.value}`
+                    });
+                }
+            } catch (error) {
+                console.error(`Error evaluating equation ${index + 1}:`, error);
+            }
+        }
+    });
+
+    layout.scene.xaxis.range = [-5, 5];
+    layout.scene.yaxis.range = [-5, 5];
+    layout.scene.zaxis.range = [-5, 5];
+
+    Plotly.react('graph', data, layout, config);
 }
 
-function onDocumentMouseDown(event) {
-    mouseDown = true;
-    mouseButton = event.button;
-}
+document.getElementById('add-equation').addEventListener('click', addEquation);
+document.addEventListener('input', function(e) {
+    if (e.target.classList.contains('equation-input')) {
+        updateGraph();
+    }
+});
+document.querySelectorAll('input[name="graph-type"]').forEach(radio => {
+    radio.addEventListener('change', updateGraph);
+});
 
-function onDocumentMouseUp(event) {
-    mouseDown = false;
-}
-
-function onDocumentMouseMove(event) {
-
-    if (!mouseDown || mouseButton !== 0) return;
-    mouseX = (event.clientX / window.innerWidth) * 2 - 1;
-    mouseY = - (event.clientY / window.innerHeight) * 2 + 1;
-
-    theta -= mouseX ;
-    phi -= mouseY ;
-    camera.position.x = radius * Math.sin( THREE.Math.degToRad( theta ) );
-    camera.position.y = radius * Math.sin( THREE.Math.degToRad( phi ) );
-    camera.position.z = radius * Math.cos( THREE.Math.degToRad( theta ) );
-    camera.lookAt( scene.position );
-}
-
-function animate() {
-
-    requestAnimationFrame( animate );
-
-    renderer.render( scene, camera );
-
-}
-
-// Function to generate a function from user input
-function getFunc(input) {
-    var funcString = "var func = function(u, v, vector) {var x = u * 200 - 100; var y = v * 200 - 100; var z = " + input + "; vector.set(x, y, z);}; func";
-    return eval(funcString);
-}
+addEquation();
